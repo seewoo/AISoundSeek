@@ -1,6 +1,6 @@
 {
   "name": "aisoundseek",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "A cross-platform audio resource management tool for video creators",
   "main": "dist/main/main/main.js",
   "scripts": {
