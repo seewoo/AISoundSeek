@@ -1,0 +1,13 @@
+<?xdebug version="1.0" encoding="UTF-8"?>
+<ExtensionList>
+  <Extension Id="com.aisoundseek.premiere-insert.panel">
+    <HostList>
+      <!--
+        Opens a Chrome DevTools debug port at 8080.
+        In Chrome/Edge, navigate to: http://localhost:8080
+        to inspect the CEP panel's web context.
+      -->
+      <Host Name="PPRO" Port="8080"/>
+    </HostList>
+  </Extension>
+</ExtensionList>
