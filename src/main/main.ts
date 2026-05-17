@@ -7,6 +7,11 @@ import { registerIpcHandlers } from './ipcHandlers'
 import { BackgroundAnalyzer } from './backgroundAnalyzer'
 import { setupAutoUpdater } from './autoUpdater'
 
+// 开发环境使用独立的用户数据目录，避免与生产环境数据混淆
+if (!app.isPackaged) {
+  app.setPath('userData', path.join(app.getPath('appData'), 'aisoundseek-dev'))
+}
+
 // Configure electron-log
 log.transports.file.level = 'info'
 log.transports.console.level = process.env.NODE_ENV === 'development' ? 'debug' : 'info'

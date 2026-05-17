@@ -65,7 +65,7 @@ async function callOpenAICompat(
     throw new BackendError(`AI 请求失败 (HTTP ${response.status}): ${body.slice(0, 200)}`, response.status)
   }
 
-  const data = await response.json()
+  const data: any = await response.json()
   const content = data?.choices?.[0]?.message?.content
   if (typeof content !== 'string') {
     throw new Error(`AI 返回格式异常: ${JSON.stringify(data).slice(0, 200)}`)
@@ -111,7 +111,7 @@ async function callAnthropic(
     throw new BackendError(`Anthropic 请求失败 (HTTP ${response.status}): ${body.slice(0, 200)}`, response.status)
   }
 
-  const data = await response.json()
+  const data: any = await response.json()
   const content = data?.content?.[0]?.text
   if (typeof content !== 'string') {
     throw new Error(`Anthropic 返回格式异常: ${JSON.stringify(data).slice(0, 200)}`)

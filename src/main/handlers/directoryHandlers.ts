@@ -65,7 +65,7 @@ export function registerDirectoryHandlers(
 
     try {
       const aiConfig = db.getAiConfig()
-      const token = aiConfig.enableOnScan ? db.getAuthToken() : null
+      const token = aiConfig.enableOnScan ? 'enabled' : null
       const count = await scanner.scanDirectory(
         dir.id,
         dir.dirPath,
@@ -87,7 +87,7 @@ export function registerDirectoryHandlers(
   ipcMain.handle('scan:all', async (event) => {
     const dirs = db.listDirectories()
     const aiConfig = db.getAiConfig()
-    const token = aiConfig.enableOnScan ? db.getAuthToken() : null
+    const token = aiConfig.enableOnScan ? 'enabled' : null
     let total = 0
 
     for (const dir of dirs) {

@@ -120,7 +120,7 @@ export class ScannerService {
     // AI analysis for newly inserted files (not yet analyzed) when enabled
     if (token && !audio.aiAnalyzed) {
       try {
-        const result = await analyzeAudioWithAI(token, audio)
+        const result = await analyzeAudioWithAI(audio, this.db)
         if (result.description || result.tags.length > 0 || result.category) {
           this.db.updateAudioFile(audio.id, {
             description: result.description,

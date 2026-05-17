@@ -43,7 +43,7 @@ export function registerAiHandlers(ipcMain: IpcMain, db: DatabaseService): void 
       const result = await analyzeAudioWithAI(audio, db)
       return { success: true, data: result }
     } catch (e: any) {
-      if (e instanceof BackendError && e.statusCode === 401) {
+      if (e instanceof BackendError && e.code === 401) {
         return { success: false, error: 'API Key 无效，请在设置中检查配置', code: 401 }
       }
       return { success: false, error: e.message }
@@ -116,7 +116,7 @@ export function registerAiHandlers(ipcMain: IpcMain, db: DatabaseService): void 
 
       return { success: true, data: { reply: aiResult.reply, picks: aiResult.picks, items } }
     } catch (e: any) {
-      if (e instanceof BackendError && e.statusCode === 401) {
+      if (e instanceof BackendError && e.code === 401) {
         return { success: false, error: 'API Key 无效，请在设置中检查配置', code: 401 }
       }
       return { success: false, error: e.message }
@@ -194,7 +194,7 @@ export function registerAiHandlers(ipcMain: IpcMain, db: DatabaseService): void 
                 successCount++
                 return { success: true as const }
               } catch (e: any) {
-                if (e instanceof BackendError && e.statusCode === 401) {
+                if (e instanceof BackendError && e.code === 401) {
                   console.log('[BatchAnalyze] API Key 无效，停止批量分析')
                   return { success: false, reason: 'api_key_invalid' as const }
                 }
@@ -239,7 +239,7 @@ export function registerAiHandlers(ipcMain: IpcMain, db: DatabaseService): void 
 
         return { success: true, data: { success: successCount, failed: failedCount, total } }
       } catch (e: any) {
-        if (e instanceof BackendError && e.statusCode === 401) {
+        if (e instanceof BackendError && e.code === 401) {
           return { success: false, error: 'API Key 无效，请在设置中检查配置', code: 401 }
         }
         return { success: false, error: e.message }
@@ -260,7 +260,7 @@ export function registerAiHandlers(ipcMain: IpcMain, db: DatabaseService): void 
       return { success: true, data: { reply: reply.trim() } }
     } catch (e: any) {
       if (e instanceof BackendError) {
-        return { success: false, error: `HTTP ${e.statusCode}: API Key 无效或接口错误`, code: e.statusCode }
+        return { success: false, error: `HTTP ${e.code}: API Key 无效或接口错误`, code: e.code }
       }
       return { success: false, error: e.message }
     }
