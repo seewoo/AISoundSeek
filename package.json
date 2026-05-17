@@ -1,0 +1,110 @@
+{
+  "name": "aisoundseek",
+  "version": "0.1.0",
+  "description": "A cross-platform audio resource management tool for video creators",
+  "main": "dist/main/main/main.js",
+  "scripts": {
+    "dev": "concurrently \"npm run dev:renderer\" \"npm run dev:main\"",
+    "dev:renderer": "vite",
+    "dev:main": "tsc -p tsconfig.main.json --watch",
+    "build": "npm run build:renderer && npm run build:main",
+    "build:renderer": "vite build",
+    "build:main": "node scripts/build-main.mjs",
+    "electron": "electron .",
+    "start": "npm run build && electron .",
+    "build:prod": "cross-env AUDIO_SEEK_API_URL=http://a.aisoundseek.cn/api npm run build",
+    "package:win": "npm run build && electron-builder --win",
+    "package:mac": "npm run build && electron-builder --mac",
+    "package:linux": "npm run build && electron-builder --linux",
+    "package:all": "npm run build && electron-builder --win --mac --linux",
+    "package:win:prod": "npm run build:prod && electron-builder --win",
+    "package:mac:prod": "npm run build:prod && electron-builder --mac",
+    "package:linux:prod": "npm run build:prod && electron-builder --linux",
+    "package:all:prod": "npm run build:prod && electron-builder --win --mac --linux"
+  },
+  "keywords": [
+    "audio",
+    "music",
+    "manager",
+    "electron",
+    "react"
+  ],
+  "author": "AISoundSeek",
+  "license": "MIT",
+  "dependencies": {
+    "electron-log": "^5.4.3",
+    "electron-store": "^10.0.0",
+    "electron-updater": "^6.8.3",
+    "glob": "^10.3.10",
+    "music-metadata": "^10.5.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "sql.js": "^1.12.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.5",
+    "@types/react": "^18.2.48",
+    "@types/react-dom": "^18.2.18",
+    "@types/sql.js": "^1.4.9",
+    "@vitejs/plugin-react": "^4.2.1",
+    "autoprefixer": "^10.4.17",
+    "concurrently": "^8.2.2",
+    "cross-env": "^10.1.0",
+    "electron": "^29.0.1",
+    "electron-builder": "^24.9.1",
+    "esbuild": "^0.28.0",
+    "png2icons": "^2.0.1",
+    "postcss": "^8.4.33",
+    "tailwindcss": "^3.4.1",
+    "typescript": "^5.3.3",
+    "vite": "^5.0.12",
+    "vite-plugin-electron": "^0.28.4"
+  },
+  "build": {
+    "appId": "com.aisoundseek.app",
+    "productName": "aisoundseek",
+    "directories": {
+      "output": "release"
+    },
+    "publish": {
+      "provider": "github",
+      "owner": "seewoo",
+      "repo": "aisoundseek"
+    },
+    "asarUnpack": [
+      "**/sql.js/dist/sql-wasm.wasm"
+    ],
+    "files": [
+      "dist/**/*",
+      "node_modules/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ],
+      "icon": "assets/icon.ico",
+      "signingHashAlgorithms": null,
+      "sign": null
+    },
+    "mac": {
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "icon": "assets/icon.icns"
+    },
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "icon": "assets/icon.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
+  }
+}

@@ -1,0 +1,68 @@
+{
+  "providers": [
+    {
+      "id": "qwen",
+      "name": "通义千问 (Qwen)",
+      "baseUrl": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+      "apiStyle": "openai",
+      "requiresApiKey": true,
+      "models": [
+        "qwen3.5-omni-plus-2026-03-15",
+        "qwen3-omni-flash-realtime-2025-09-15",
+        "qwen3-omni-flash-realtime",
+        "qwen-omni-turbo-realtime-2025-05-08",
+        "qwen-omni-turbo-realtime-latest",
+        "qwen3.5-omni-flash-realtime-2026-03-15",
+        "qwen3-omni-flash-2025-12-01",
+        "qwen3-omni-flash",
+        "qwen3.5-omni-plus",
+        "qwen-omni-turbo-realtime",
+        "qwen-omni-turbo-latest",
+        "qwen-omni-turbo",
+        "qwen2.5-omni-7b",
+        "qwen3.5-omni-plus-realtime",
+        "qwen-omni-turbo-2025-03-26",
+        "qwen3.5-omni-flash",
+        "qwen3-omni-flash-realtime-2025-12-01",
+        "qwen-omni-turbo-2025-01-19",
+        "qwen3.5-omni-plus-realtime-2026-03-15",
+        "qwen3.5-omni-flash-realtime",
+        "qwen3-omni-flash-2025-09-15",
+        "qwen3.5-omni-flash-2026-03-15"
+      ]
+    },
+    {
+      "id": "openai",
+      "name": "OpenAI",
+      "baseUrl": "https://api.openai.com/v1",
+      "apiStyle": "openai",
+      "requiresApiKey": true,
+      "models": ["gpt-4o", "gpt-4o-mini"]
+    },
+    {
+      "id": "zhipu",
+      "name": "智谱 AI (GLM)",
+      "baseUrl": "https://open.bigmodel.cn/api/paas/v4",
+      "apiStyle": "openai",
+      "requiresApiKey": true,
+      "models": ["glm-4v"]
+    },
+    {
+      "id": "ollama",
+      "name": "Ollama（本地）",
+      "baseUrl": "http://localhost:11434/v1",
+      "apiStyle": "openai",
+      "requiresApiKey": false,
+      "models": []
+    },
+    {
+      "id": "custom",
+      "name": "自定义",
+      "baseUrl": "",
+      "apiStyle": "openai",
+      "requiresApiKey": true,
+      "isCustom": true,
+      "models": []
+    }
+  ]
+}

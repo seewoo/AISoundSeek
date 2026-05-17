@@ -1,0 +1,240 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── Semantic theme CSS variables ── */
+:root {
+  /* Fallback: dark theme (overridden by html.dark / html.light below) */
+  --c-bg: #0f172a;
+  --c-bg-card: #1e293b;
+  --c-bg-btn: #334155;
+  --c-bg-btn-hov: #475569;
+  --c-bg-input: #0f172a;
+  --c-bg-hover: #1e293b;
+  --c-text: #f1f5f9;
+  --c-text-2: #94a3b8;
+  --c-text-3: #64748b;
+  --c-text-4: #475569;
+  --c-border: #334155;
+  --c-border-2: #475569;
+  --c-scrollbar-track: #1e293b;
+  --c-scrollbar-thumb: #475569;
+  --c-scrollbar-hover: #64748b;
+}
+
+html.dark {
+  color-scheme: dark;
+  --c-bg: #0f172a;
+  --c-bg-card: #1e293b;
+  --c-bg-btn: #334155;
+  --c-bg-btn-hov: #475569;
+  --c-bg-input: #0f172a;
+  --c-bg-hover: #1e293b;
+  --c-text: #f1f5f9;
+  --c-text-2: #94a3b8;
+  --c-text-3: #64748b;
+  --c-text-4: #475569;
+  --c-border: #334155;
+  --c-border-2: #475569;
+  --c-scrollbar-track: #1e293b;
+  --c-scrollbar-thumb: #475569;
+  --c-scrollbar-hover: #64748b;
+}
+
+html.light {
+  color-scheme: light;
+  --c-bg: #ffffff;
+  --c-bg-card: #f1f5f9;
+  --c-bg-btn: #f1f5f9;
+  --c-bg-btn-hov: #e2e8f0;
+  --c-bg-input: #ffffff;
+  --c-bg-hover: #f1f5f9;
+  --c-text: #0f172a;
+  --c-text-2: #475569;
+  --c-text-3: #94a3b8;
+  --c-text-4: #cbd5e1;
+  --c-border: #e2e8f0;
+  --c-border-2: #cbd5e1;
+  --c-scrollbar-track: #f1f5f9;
+  --c-scrollbar-thumb: #cbd5e1;
+  --c-scrollbar-hover: #94a3b8;
+}
+
+@layer base {
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+
+  html, body, #root {
+    height: 100%;
+    overflow: hidden;
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    background-color: var(--c-bg);
+    color: var(--c-text);
+    -webkit-font-smoothing: antialiased;
+    user-select: none;
+  }
+
+  /* Scrollbar styles */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: var(--c-scrollbar-track);
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: var(--c-scrollbar-thumb);
+    border-radius: 3px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--c-scrollbar-hover);
+  }
+}
+
+@layer components {
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-all duration-150 cursor-pointer select-none;
+  }
+
+  .btn-primary {
+    @apply btn bg-primary-600 hover:bg-primary-500 text-white;
+  }
+
+  .btn-secondary {
+    @apply btn bg-surface-btn hover:bg-surface-btn-hov text-ink border border-rim-2;
+  }
+
+  .btn-ghost {
+    @apply btn hover:bg-surface-hover text-ink-2 hover:text-ink;
+  }
+
+  .btn-danger {
+    @apply btn bg-red-900/40 hover:bg-red-800/60 text-red-400 border border-red-800/50;
+  }
+
+  .card {
+    @apply bg-surface-card border border-rim rounded-xl;
+  }
+
+  .input {
+    @apply bg-surface-input border border-rim-2 rounded-lg px-3 py-2 text-sm text-ink
+           placeholder:text-ink-3 focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500/30
+           transition-colors w-full;
+  }
+
+  .select {
+    @apply bg-surface-input border border-rim-2 rounded-lg py-2 text-sm text-ink
+           focus:outline-none focus:border-primary-500
+           transition-colors w-full cursor-pointer;
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+  }
+
+  .badge {
+    @apply inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium;
+  }
+
+  .tag-pill {
+    @apply badge bg-surface-btn text-ink-2 border border-rim-2 hover:bg-surface-btn-hov cursor-pointer transition-colors;
+  }
+
+  .tag-pill-active {
+    @apply badge text-white border cursor-pointer transition-colors;
+  }
+
+  .audio-row {
+    @apply flex items-center gap-3 px-4 py-2.5 hover:bg-surface-hover rounded-lg cursor-pointer transition-colors;
+  }
+
+  .audio-row-active {
+    @apply bg-primary-900/30 border border-primary-700/30;
+  }
+
+  .section-header {
+    @apply text-xs font-semibold text-ink-3 uppercase tracking-wider px-3 py-2;
+  }
+}
+
+/* Custom range slider */
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+  cursor: pointer;
+  width: 100%;
+}
+
+input[type="range"]::-webkit-slider-track {
+  background: var(--c-border);
+  border-radius: 999px;
+  height: 4px;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  background: #0ea5e9;
+  border-radius: 50%;
+  height: 14px;
+  width: 14px;
+  margin-top: -5px;
+  transition: transform 0.1s;
+}
+
+input[type="range"]::-webkit-slider-thumb:hover {
+  transform: scale(1.2);
+}
+
+/* Drag region for macOS */
+.drag-region {
+  -webkit-app-region: drag;
+}
+
+.no-drag {
+  -webkit-app-region: no-drag;
+}
+
+/* Animations */
+@keyframes spin-slow {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.animate-spin-slow {
+  animation: spin-slow 3s linear infinite;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.2s ease-out;
+}
+
+/* Waveform animation for playing indicator */
+@keyframes wave {
+  0%, 100% { transform: scaleY(0.4); }
+  50% { transform: scaleY(1); }
+}
+
+.wave-bar {
+  display: inline-block;
+  width: 3px;
+  border-radius: 2px;
+  background: #0ea5e9;
+  animation: wave 0.8s ease-in-out infinite;
+}
+
+.wave-bar:nth-child(2) { animation-delay: 0.15s; }
+.wave-bar:nth-child(3) { animation-delay: 0.3s; }
