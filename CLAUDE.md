@@ -8,7 +8,7 @@ Audio Resource Manager is an Electron-based desktop application for managing aud
 
 **Tech Stack**: Electron 29 + React 18 + TypeScript 5 + Vite 5 + Tailwind CSS + sql.js + music-metadata
 
-**Current Branch**: `feature/user-auth-backend-proxy` — Implements JWT authentication and backend proxy for AI features.
+**Current Branch**: `master` — AI features use direct API key configuration with multiple provider support.
 
 ## Build Commands
 
@@ -49,14 +49,14 @@ npm run package:all     # All platforms
 - `database.ts` — sql.js wrapper with transaction support
 - `scanner.ts` — Audio file scanning and metadata extraction using `music-metadata`
 - `aiAnalyzer.ts` — AI-powered audio analysis (description generation, tag extraction)
-- `lib/backendClient.ts` — Backend API client (login, register, AI chat)
-- `lib/errors.ts` — Custom error classes (AuthenticationError, InsufficientTokenError, etc.)
+- `lib/aiClient.ts` — Direct AI client supporting OpenAI-compatible and Anthropic APIs
+- `lib/errors.ts` — Custom error classes (NetworkError, BackendError, etc.)
 - `config.ts` — Configuration manager (loads `config.json` from userData directory)
 
 **Renderer Process** (`src/renderer/`):
 - `App.tsx` — Root component
-- `components/` — UI components (Sidebar, AudioList, AudioDetail, PlayerBar, LoginModal, etc.)
-- `store/` — React Context for global state (AuthContext, ToastContext)
+- `components/` — UI components (Sidebar, AudioList, AudioDetail, PlayerBar, SettingsModal, etc.)
+- `store/` — React Context for global state (AiConfigContext, ToastContext)
 - `hooks/` — Custom React hooks
 
 **Shared** (`src/shared/types.ts`):
@@ -81,7 +81,7 @@ npm run package:all     # All platforms
 - `upsertAudioFile()` — Updates metadata on rescan but preserves user edits (category, tags, description, rating)
 - `searchAudioFiles()` — Multi-criteria search with pagination (keyword searches across title, file_name, artist, album, description, tags)
 - `transaction(fn)` — Wraps multiple operations in `BEGIN...COMMIT` and saves once
-- Auth methods: `saveAuth()`, `getAuth()`, `clearAuth()` — JWT tokens are Base64-encoded in storage
+- AI config methods: `getAiConfig()`, `saveAiConfig()` — provider ID, API key, model stored in settings table
 
 ### IPC Communication
 
@@ -94,40 +94,34 @@ All main-renderer communication uses secure IPC via `contextBridge`. The API sur
 - `scan:*` — Audio scanning with progress events (`scan:progress` sent to renderer)
 - `audio:*` — Audio CRUD, search, batch update, play count tracking
 - `tag:*` — Tag CRUD and usage recalculation
-- `ai:*` — AI analysis, chat search (requires authentication)
-- `auth:*` — Login, register, logout, token refresh
+- `ai:*` — AI analysis, chat search, config (requires API key configured)
 - `waveform:*` — Waveform data persistence
 
 **Error Handling**: 
-- `code: 401` — Authentication failure (triggers logout in renderer)
-- `code: 510` — Insufficient token balance (prompts user to recharge)
+- `code: 400` — AI not configured (prompts user to open Settings)
 
-### Authentication & Backend Proxy
+### AI Configuration
 
-**New in this branch**: AI features now route through a backend proxy server instead of direct OpenAI API calls.
+AI features call the selected provider's API directly from the main process using `lib/aiClient.ts`.
 
-**Backend API** (see `API.md`):
-- Base URL: `http://localhost:8080/api` (configurable in `config.json`)
-- JWT authentication via `Authorization: Bearer <token>` header
-- Endpoints: `/user/login`, `/user/register`, `/user/info`, `/ai/chat`
-- Error codes: 401 (auth failure), 510 (insufficient tokens), 530-533 (AI errors)
+**Supported Providers** (`lib/providers.json`):
+- `qwen` — Tongyi Qianwen (OpenAI-compatible, `https://dashscope.aliyuncs.com/compatible-mode/v1`)
+- `openai` — OpenAI (`https://api.openai.com/v1`)
+- `zhipu` — Zhipu AI / GLM (`https://open.bigmodel.cn/api/paas/v4`)
+- `ollama` — Local Ollama (`http://localhost:11434/v1`, no API key required)
+- `custom` — User-defined endpoint (OpenAI or Anthropic style)
 
-**Client Implementation** (`lib/backendClient.ts`):
-- `BackendClient` singleton with methods for login, register, getUserInfo, chat
-- Timeout handling (30s default)
-- Throws typed errors: `AuthenticationError`, `InsufficientTokenError`, `BackendError`, `NetworkError`
-
-**Auth Flow**:
-1. User logs in via `LoginModal` → `auth:login` IPC → `backendClient.login()`
-2. Backend returns `{ token, userId, username, tokenBalance }`
-3. Token saved to database (Base64-encoded), stored in `AuthContext` in renderer
-4. Token included in all subsequent AI requests
-5. On 401 error, `db.clearAuth()` called and user redirected to login
+**AiConfig** (stored in `settings` table):
+- `providerId` — Selected provider
+- `apiKey` — API key (stored locally only, never sent to a proxy)
+- `model` — Model name
+- `customBaseUrl` — Used only when `providerId === 'custom'`
+- `enableOnScan` — Auto-analyze during scan (disabled by default)
 
 ### AI Integration
 
 **Audio Analysis** (`ai:analyze`):
-- Extracts file info (name, duration, metadata) and sends to AI via backend
+- Extracts file info (name, duration, metadata) and sends to AI via `aiClient.chatCompletion()`
 - AI returns `{ description, tags[], category? }`
 - User can apply suggestions to audio file metadata
 
@@ -138,10 +132,7 @@ All main-renderer communication uses secure IPC via `contextBridge`. The API sur
   3. AI re-ranks candidates and returns top matches with reasoning
 - Returns `{ reply: string, picks: { id, reason }[], items: AudioFile[] }`
 
-**Token Consumption**:
-- AI operations consume tokens from user balance
-- Balance displayed in UI (TopBar)
-- On insufficient tokens (510 error), user prompted to recharge
+**AI config check**: `checkAiConfig()` in `aiHandlers.ts` verifies that an API key is present for providers that require one; returns `code: 400` if not configured.
 
 ### TypeScript Configuration
 
@@ -180,11 +171,11 @@ Main process compiled separately by `tsc` using `tsconfig.main.json`.
 ### Security
 - **Never disable nodeIntegration**: Always use `contextBridge` in preload script
 - **File paths**: Use `file://` protocol for audio playback and cover images
-- **Token storage**: JWT tokens are Base64-encoded (not plain text) in database
+- **API Key storage**: Keys are stored only in the local sql.js database, never transmitted to a proxy server
 
 ### Error Handling
 - **IPC responses**: Always return `{ success, data?, error?, code? }`
-- **Authentication errors**: Clear local auth data on 401 and redirect to login
+- **AI not configured**: Return `code: 400` and prompt user to open Settings
 - **Network errors**: Show user-friendly toast messages via `ToastContext`
 
 ### Scanning Behavior
@@ -195,8 +186,8 @@ Main process compiled separately by `tsc` using `tsconfig.main.json`.
 - Progress reported via `scan:progress` event
 
 ### AI Feature Flags
-- `ai.enableOnScan` setting — Auto-analyze audio files during scan (disabled by default due to token cost)
-- AI features gated behind authentication check
+- `ai.enableOnScan` setting — Auto-analyze audio files during scan (disabled by default)
+- AI features gated behind API key configuration check (not authentication)
 
 ## Configuration Files
 
@@ -209,8 +200,7 @@ Main process compiled separately by `tsc` using `tsconfig.main.json`.
 
 ## Git Workflow
 
-- **Main branch**: `main`
-- **Current feature branch**: `feature/user-auth-backend-proxy`
+- **Main branch**: `master`
 - Recent work includes authentication system, backend proxy client, login/register UI, token balance tracking
 
 ## Known Issues & Notes

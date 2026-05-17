@@ -17,9 +17,9 @@
 - **多维度检索** — 支持关键词、标签、类别、版权、时长范围、评分组合筛选
 - **版权管理** — 标注免版权 / 有授权 / 未知，支持填写版权备注
 - **实时试听** — 内置播放器，支持进度条拖拽、音量调节、上下曲切换、波形显示
-- **AI 智能分析** — 通过后端代理调用 AI，自动生成描述、提取标签和类别建议
+- **AI 智能分析** — 配置 API Key 后直连 AI 提供商，自动生成描述、提取标签和类别建议
 - **AI 对话搜索** — 用自然语言描述需要的音乐，AI 多阶段检索并给出理由排名
-- **用户认证** — JWT 登录注册，Token 余额管理，AI 功能消费追踪
+- **多 AI 提供商** — 内置通义千问、OpenAI、智谱 AI、Ollama（本地），支持自定义 OpenAI 兼容端点
 - **自动更新** — 内置 electron-updater，应用启动时自动检测并提示更新
 - **深色界面** — 深色 / 浅色主题切换，响应式布局，流畅动画
 
@@ -46,8 +46,7 @@ src/
 │   │   ├── categoryHandlers.ts  # category:*
 │   │   ├── settingsHandlers.ts  # settings:* / ai:getConfig / ai:saveConfig
 │   │   ├── aiHandlers.ts        # ai:analyze / ai:chatSearch / ai:batchAnalyze
-│   │   ├── authHandlers.ts      # auth:login / auth:register / auth:logout / …
-│   │   └── configHandlers.ts    # config:getBackendUrl / premiere:insertAudio
+│   │   └── configHandlers.ts    # premiere:insertAudio
 │   ├── db/                      # 数据库分层（Repository 模式）
 │   │   ├── DbContext.ts         # sql.js 封装：query / run / transaction / save
 │   │   ├── schema.ts            # migrate()：建表 + 增量列迁移
@@ -55,11 +54,10 @@ src/
 │   │   ├── AudioRepository.ts
 │   │   ├── TagRepository.ts
 │   │   ├── SettingsRepository.ts
-│   │   ├── AuthRepository.ts
 │   │   └── CategoryRepository.ts
 │   └── lib/
-│       ├── backendClient.ts     # 后端 HTTP 客户端（登录 / 注册 / AI 代理）
-│       └── errors.ts            # 类型化错误：AuthenticationError / InsufficientTokenError / …
+│       ├── aiClient.ts          # AI 直连客户端（OpenAI 兼容 + Anthropic）
+│       └── errors.ts            # 类型化错误：NetworkError / BackendError / …
 ├── renderer/                    # React 渲染进程
 │   ├── App.tsx                  # 根组件
 │   ├── main.tsx                 # 渲染入口
@@ -79,19 +77,18 @@ src/
 │   │   ├── FilterPanel.tsx      # 高级筛选面板
 │   │   ├── TagsView.tsx         # 标签管理页
 │   │   ├── LoginModal.tsx       # 登录 / 注册弹窗
-│   │   ├── SettingsModal.tsx    # 设置弹窗
+│   │   ├── SettingsModal.tsx    # 设置弹窗（含 AI API Key 配置）
 │   │   ├── DirectoriesModal.tsx # 目录管理弹窗
 │   │   └── …                   # 其他页面级组件
 │   ├── store/                   # React Context 全局状态
 │   │   ├── index.tsx            # 播放器 + 搜索状态（usePlayer / useSearch）
-│   │   ├── AuthContext.tsx      # 认证状态（用户信息 + Token 余额）
+│   │   ├── AiConfigContext.tsx  # AI 配置状态（提供商 + API Key）
 │   │   ├── BatchAnalyzeContext.tsx # 批量分析状态
 │   │   ├── ThemeContext.tsx     # 深色 / 浅色主题
 │   │   └── ToastContext.tsx     # 全局 Toast 通知
 │   ├── hooks/                   # 自定义 React Hooks
-│   │   ├── useAuth.ts
+│   │   ├── useAiConfig.ts       # AI 配置读取
 │   │   ├── useAiErrorHandler.ts
-│   │   ├── useBalanceWarning.ts
 │   │   └── useToast.ts
 │   └── lib/                     # 工具函数与渲染层服务
 │       ├── api.ts               # 统一 IPC 调用封装（apiCall wrapper）
@@ -194,9 +191,11 @@ npm run package:all    # 全平台
 | `audio_files` | 音频文件元数据、标签（JSON）、波形数据（JSON）、版权信息 |
 | `tags` | 标签定义（名称、颜色、使用次数） |
 | `custom_categories` | 用户自定义类别 |
-| `settings` | 键值对设置（含 AI 配置、认证 Token） |
+| `settings` | 键值对设置（含 AI 提供商配置、API Key） |
 
 ### 配置文件
+
+AI 配置通过应用内设置保存到数据库 `settings` 表，无需手动编辑配置文件。运行时配置文件路径：
 
 | 平台 | 配置文件路径 |
 |------|------------|
@@ -204,29 +203,21 @@ npm run package:all    # 全平台
 | macOS | `~/Library/Application Support/aisoundseek/config.json` |
 | Linux | `~/.config/aisoundseek/config.json` |
 
-默认配置：
-
-```json
-{
-  "version": "1.0",
-  "backend": {
-    "baseUrl": "http://localhost:8080/api",
-    "timeout": 30000
-  }
-}
-```
-
-如需连接其他后端服务，直接修改 `backend.baseUrl` 即可。也可通过构建时环境变量指定：
-
-```bash
-AUDIO_SEEK_API_URL=https://api.example.com/api npm run build
-```
-
 ---
 
 ## 🤖 AI 功能
 
-AI 功能通过后端代理服务器提供，需要用户账号登录并持有 Token 余额。
+AI 功能**直连**所选提供商的 API，无需搭建后端服务。在 **设置 → AI 设置** 中选择提供商、填写 API Key 和模型名称即可启用。
+
+### 支持的 AI 提供商
+
+| 提供商 | API 风格 | 需要 API Key |
+|--------|---------|-------------|
+| 通义千问 (Qwen) | OpenAI 兼容 | 是 |
+| OpenAI | OpenAI 原生 | 是 |
+| 智谱 AI (GLM) | OpenAI 兼容 | 是 |
+| Ollama（本地） | OpenAI 兼容 | 否 |
+| 自定义端点 | OpenAI / Anthropic | 可选 |
 
 ### 单文件分析（`ai:analyze`）
 
@@ -252,30 +243,26 @@ AI 功能通过后端代理服务器提供，需要用户账号登录并持有 T
 
 - 启动延迟：30 秒
 - 每批最多：3 个文件
-- 可设定每日 Token 上限
-
-### Token 管理
-
-- 登录后 Token 余额显示在顶部栏
-- 余额不足时（服务端返回 510）提示充值
-- JWT Token 以 Base64 编码存储在数据库 settings 表
+- 可设定每日分析上限
 
 ---
 
-## 🔐 认证与安全
+## 🔐 安全设计
 
 - **contextBridge + nodeIntegration=false**：渲染进程无法直接访问 Node.js API
 - **local-file:// 协议白名单**：仅允许访问 `os.tmpdir()` 内的路径，防止任意文件读取
-- **JWT 认证**：所有 AI 请求通过 `Authorization: Bearer <token>` 头携带 Token
-- **类型化错误**：`AuthenticationError`（401）、`InsufficientTokenError`（510）在渲染层统一捕获处理
+- **API Key 本地存储**：API Key 仅保存在本机数据库，不上传至任何服务器
+- **类型化错误**：`NetworkError`、`BackendError` 在渲染层统一捕获并显示友好提示
 
 ---
 
 ## 🎮 使用指南
 
-### 第一步：登录账号
+### 第一步：配置 AI（可选）
 
-点击右上角用户图标打开登录弹窗，注册账号后登录即可使用 AI 功能。
+点击右上角齿轮图标打开 **设置 → AI 设置**，选择 AI 提供商、填写 API Key 和模型名称后保存。可点击「测试连接」验证配置是否正确。
+
+> 不使用 AI 功能时可跳过此步骤。
 
 ### 第二步：添加音频目录
 
@@ -287,7 +274,7 @@ AI 功能通过后端代理服务器提供，需要用户账号登录并持有 T
 
 - 在顶部搜索框输入关键词（文件名、标题、艺术家、描述、标签均可搜索）
 - 点击 **筛选** 展开高级筛选：类别、版权、时长范围、评分、标签
-- 点击 **AI 搜索** 用自然语言描述所需音乐
+- 点击 **AI 搜索** 用自然语言描述所需音乐（需先配置 AI API Key）
 
 ### 第四步：试听 & 管理
 
@@ -345,7 +332,7 @@ AI 功能通过后端代理服务器提供，需要用户账号登录并持有 T
 
 ## 📝 开发说明
 
-- **IPC 通信**：所有 IPC handler 返回 `IpcResponse<T>` = `{ success, data?, error?, code? }`，错误码 401 触发自动登出，510 提示 Token 不足
+- **IPC 通信**：所有 IPC handler 返回 `IpcResponse<T>` = `{ success, data?, error?, code? }`，错误码 400 表示 AI 未配置
 - **数据库写入**：sql.js 内存数据库，每次写操作后显式调用 `save()` 序列化到磁盘；批量操作使用 `transaction(fn)` 包裹以只写一次磁盘
 - **扫描保留用户编辑**：重扫仅更新元数据字段，用户设置的标签、版权、描述、评分不被覆盖
 - **波形生成**：Web Audio API 在渲染进程按需生成波形峰值，结果持久化到数据库
