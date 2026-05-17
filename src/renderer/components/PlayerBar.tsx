@@ -1,10 +1,18 @@
 import { useRef, useState, useEffect } from 'react'
 import { usePlayer } from '../store'
+import type { PlayMode } from '../store'
 import { formatDuration } from '../lib/utils'
-import { PlayIcon, PauseIcon, ForwardIcon, BackwardIcon, SpeakerIcon, SpeakerMuteIcon } from './Icons'
+import { PlayIcon, PauseIcon, ForwardIcon, BackwardIcon, SpeakerIcon, SpeakerMuteIcon, PlaySequenceIcon, PlaySingleIcon, RepeatOneIcon } from './Icons'
 import { WaveformBar } from './WaveformBar'
 import { useWaveformData } from '../lib/useWaveformData'
 import { useTheme } from '../store/ThemeContext'
+
+const PLAY_MODE_CYCLE: PlayMode[] = ['sequence', 'single', 'repeat']
+const PLAY_MODE_LABEL: Record<PlayMode, string> = {
+  sequence: '顺序播放',
+  single: '单曲停止',
+  repeat: '单曲循环',
+}
 
 export function PlayerBar() {
   const {
@@ -14,13 +22,22 @@ export function PlayerBar() {
     duration,
     volume,
     isMuted,
+    playMode,
     togglePlay,
     playNext,
     playPrev,
     seek,
     setVolume,
     toggleMute,
+    setPlayMode,
   } = usePlayer()
+
+  const cyclePlayMode = () => {
+    const idx = PLAY_MODE_CYCLE.indexOf(playMode)
+    setPlayMode(PLAY_MODE_CYCLE[(idx + 1) % PLAY_MODE_CYCLE.length])
+  }
+
+  const PlayModeIcon = playMode === 'single' ? PlaySingleIcon : playMode === 'repeat' ? RepeatOneIcon : PlaySequenceIcon
 
   const waveformContainerRef = useRef<HTMLDivElement>(null)
   const [containerWidth, setContainerWidth] = useState(0)
@@ -122,6 +139,13 @@ export function PlayerBar() {
 
             {/* Volume */}
             <div className="flex-1 flex items-center justify-end gap-2">
+              <button
+                onClick={cyclePlayMode}
+                title={PLAY_MODE_LABEL[playMode]}
+                className={`btn-ghost w-8 h-8 p-0 transition-colors ${playMode !== 'sequence' ? 'text-primary-500' : 'text-ink-2 hover:text-ink'}`}
+              >
+                <PlayModeIcon className="w-4 h-4" />
+              </button>
               <button onClick={toggleMute} className="btn-ghost w-8 h-8 p-0 text-ink-2 hover:text-ink">
                 {isMuted || volume === 0 ? (
                   <SpeakerMuteIcon className="w-4 h-4" />

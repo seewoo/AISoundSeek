@@ -187,3 +187,31 @@ export const InformationCircleIcon = ({ className = 'w-5 h-5' }: { className?: s
   </svg>
 )
 
+/** 顺序播放：列表末尾停止 */
+export const PlaySequenceIcon = ({ className = 'w-5 h-5' }: { className?: string }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h10" />
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 13l3 3-3 3" />
+  </svg>
+)
+
+/** 单曲停止：播完当前曲目后停止 */
+export const PlaySingleIcon = ({ className = 'w-5 h-5' }: { className?: string }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <circle cx="12" cy="12" r="9" strokeWidth={2} />
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h4M13 12V9" />
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 12l-2 3" />
+  </svg>
+)
+
+/** 单曲循环：重复播放当前曲目 */
+export const RepeatOneIcon = ({ className = 'w-5 h-5' }: { className?: string }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 2l4 4-4 4" />
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 11V9a4 4 0 014-4h14" />
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 22l-4-4 4-4" />
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13v2a4 4 0 01-4 4H3" />
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 10h1v4" />
+  </svg>
+)
+

@@ -2,6 +2,8 @@ import { createContext, useContext, useState, useCallback, useRef, useEffect, ty
 import type { AudioFile, SearchParams } from '../../shared/types'
 import * as api from '../lib/api'
 
+export type PlayMode = 'single' | 'sequence' | 'repeat'
+
 interface PlayerState {
   currentTrack: AudioFile | null
   isPlaying: boolean
@@ -11,6 +13,7 @@ interface PlayerState {
   isMuted: boolean
   queue: AudioFile[]
   queueIndex: number
+  playMode: PlayMode
 }
 
 interface PlayerContextValue extends PlayerState {
@@ -18,6 +21,7 @@ interface PlayerContextValue extends PlayerState {
   pause: () => void
   resume: () => void
   togglePlay: (track?: AudioFile) => void
+  setPlayMode: (mode: PlayMode) => void
   seek: (time: number) => void
   setVolume: (v: number) => void
   toggleMute: () => void
@@ -40,10 +44,11 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     isMuted: false,
     queue: [],
     queueIndex: -1,
+    playMode: 'sequence',
   })
 
   // 用 ref 持有最新的 playNextInternal，避免 onEnded 闭包陈旧问题
-  const playNextRef = useRef<() => void>(() => {})
+  const playNextRef = useRef<(audioEl?: HTMLAudioElement) => void>(() => {})
 
   useEffect(() => {
     const audio = audioRef.current
@@ -51,7 +56,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
     const onTimeUpdate = () => setState(s => ({ ...s, currentTime: audio.currentTime }))
     const onDurationChange = () => setState(s => ({ ...s, duration: audio.duration || 0 }))
-    const onEnded = () => playNextRef.current()
+    const onEnded = () => playNextRef.current(audio)
     const onPlay = () => setState(s => ({ ...s, isPlaying: true }))
     const onPause = () => setState(s => ({ ...s, isPlaying: false }))
 
@@ -124,8 +129,20 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     setState(s => ({ ...s, isMuted: muted }))
   }, [state.isMuted])
 
-  const playNextInternal = useCallback(() => {
+  const playNextInternal = useCallback((audioEl?: HTMLAudioElement) => {
     setState(s => {
+      // 单曲循环：重播当前曲目
+      if (s.playMode === 'repeat') {
+        const el = audioEl ?? audioRef.current
+        el.currentTime = 0
+        el.play().catch(() => {})
+        return s
+      }
+      // 单曲停止：结束后不自动切换
+      if (s.playMode === 'single') {
+        return { ...s, isPlaying: false }
+      }
+      // 顺序播放（默认）
       if (s.queue.length === 0) return s
       const nextIndex = s.queueIndex + 1
       if (nextIndex >= s.queue.length) return { ...s, isPlaying: false }
@@ -137,6 +154,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
   // 每次 playNextInternal 更新时同步到 ref，保证 onEnded 始终调用最新版本
   useEffect(() => { playNextRef.current = playNextInternal }, [playNextInternal])
+
+  const setPlayMode = useCallback((mode: PlayMode) => {
+    setState(s => ({ ...s, playMode: mode }))
+  }, [])
 
   const playNext = useCallback(() => playNextInternal(), [playNextInternal])
 
@@ -156,7 +177,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   }, [loadAndPlay])
 
   return (
-    <PlayerContext.Provider value={{ ...state, play, pause, resume, togglePlay, seek, setVolume, toggleMute, playNext, playPrev, setQueue, audioRef }}>
+    <PlayerContext.Provider value={{ ...state, play, pause, resume, togglePlay, seek, setVolume, toggleMute, playNext, playPrev, setQueue, setPlayMode, audioRef }}>
       {children}
     </PlayerContext.Provider>
   )

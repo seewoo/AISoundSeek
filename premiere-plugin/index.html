@@ -3,7 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <title>AudioSeek Insert</title>
-  <script src="main.js"></script>
+  <!-- CSInterface must be loaded before main.js so the CSInterface global is available -->
+  <script src="CSInterface.js"></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
@@ -38,14 +39,59 @@
       font-size: 13px;
       color: #a5b4fc;
     }
+    #message {
+      margin-top: 8px;
+      font-size: 12px;
+      word-break: break-all;
+      max-width: 240px;
+      text-align: center;
+    }
+    .track-row {
+      margin-top: 14px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      width: 100%;
+      max-width: 240px;
+    }
+    .track-row label { font-size: 12px; color: #888; white-space: nowrap; }
+    .track-row select {
+      flex: 1;
+      background: #2a2a4e;
+      color: #e0e0e0;
+      border: 1px solid #444;
+      border-radius: 4px;
+      padding: 3px 6px;
+      font-size: 12px;
+    }
+    .track-row button {
+      background: #2a2a4e;
+      color: #a5b4fc;
+      border: 1px solid #444;
+      border-radius: 4px;
+      padding: 3px 8px;
+      cursor: pointer;
+      font-size: 13px;
+      line-height: 1;
+    }
+    .track-row button:hover { background: #3a3a6e; }
   </style>
 </head>
 <body>
   <h3>AudioSeek Insert</h3>
-  <div class="status active" id="status">● 服务已启动</div>
+  <div class="status waiting" id="status">● 正在启动...</div>
   <p class="status waiting" id="message">等待 AudioSeek 发送音频文件...</p>
-  <p style="margin-top: 20px; font-size: 12px; color: #888;">
+  <div class="track-row">
+    <label>目标音轨:</label>
+    <select id="trackSelect">
+      <option value="" disabled>— 请点击 ↺ 刷新 —</option>
+    </select>
+    <button onclick="refreshTracks()" title="刷新轨道列表">↺</button>
+  </div>
+  <p style="margin-top: 14px; font-size: 12px; color: #888;">
     监听端口: <span class="port">18432</span>
   </p>
+  <!-- main.js must come after CSInterface.js in the head -->
+  <script src="main.js"></script>
 </body>
 </html>

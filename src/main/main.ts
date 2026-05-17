@@ -97,40 +97,43 @@ function createWindow() {
 app.whenReady().then(async () => {
   log.info('App ready, initializing...')
 
-  // Setup application menu with log folder access
-  const template: Electron.MenuItemConstructorOptions[] = [
-    {
-      label: '帮助',
-      submenu: [
-        {
-          label: '打开日志文件夹',
-          click: () => {
-            const logPath = log.transports.file.getFile().path
-            const logDir = path.dirname(logPath)
-            shell.openPath(logDir)
-            log.info('Opening log folder:', logDir)
+  // Setup application menu: only show in development mode
+  if (!app.isPackaged) {
+    const template: Electron.MenuItemConstructorOptions[] = [
+      {
+        label: '帮助',
+        submenu: [
+          {
+            label: '打开日志文件夹',
+            click: () => {
+              const logPath = log.transports.file.getFile().path
+              const logDir = path.dirname(logPath)
+              shell.openPath(logDir)
+              log.info('Opening log folder:', logDir)
+            }
+          },
+          {
+            label: '重新加载',
+            accelerator: 'CmdOrCtrl+R',
+            click: () => {
+              mainWindow?.reload()
+            }
+          },
+          {
+            label: '开发者工具',
+            accelerator: 'CmdOrCtrl+Shift+I',
+            click: () => {
+              mainWindow?.webContents.toggleDevTools()
+            }
           }
-        },
-        {
-          label: '重新加载',
-          accelerator: 'CmdOrCtrl+R',
-          click: () => {
-            mainWindow?.reload()
-          }
-        },
-        {
-          label: '开发者工具',
-          accelerator: 'CmdOrCtrl+Shift+I',
-          click: () => {
-            mainWindow?.webContents.toggleDevTools()
-          }
-        }
-      ]
-    }
-  ]
-
-  const menu = Menu.buildFromTemplate(template)
-  Menu.setApplicationMenu(menu)
+        ]
+      }
+    ]
+    const menu = Menu.buildFromTemplate(template)
+    Menu.setApplicationMenu(menu)
+  } else {
+    Menu.setApplicationMenu(null)
+  }
 
   log.info('Initializing database...')
   db = new DatabaseService(app.getPath('userData'))
