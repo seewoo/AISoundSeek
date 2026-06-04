@@ -9,6 +9,7 @@ import { registerCategoryHandlers } from './handlers/categoryHandlers'
 import { registerSettingsHandlers } from './handlers/settingsHandlers'
 import { registerAiHandlers } from './handlers/aiHandlers'
 import { registerConfigHandlers } from './handlers/configHandlers'
+import { registerChatSessionHandlers } from './handlers/chatSessionHandlers'
 
 export function registerIpcHandlers(
   ipcMain: IpcMain,
@@ -43,4 +44,5 @@ export function registerIpcHandlers(
   registerSettingsHandlers(ipcMain, db)
   registerAiHandlers(ipcMain, db)
   registerConfigHandlers(ipcMain, db)
+  registerChatSessionHandlers(ipcMain, db)
 }

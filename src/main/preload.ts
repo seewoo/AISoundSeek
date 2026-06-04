@@ -159,6 +159,20 @@ const api = {
   // App info
   getVersion: () =>
     ipcRenderer.invoke('app:getVersion'),
+
+  // Chat Sessions
+  listSessions: () =>
+    ipcRenderer.invoke('session:list'),
+  getSession: (id: number) =>
+    ipcRenderer.invoke('session:get', { id }),
+  createSession: (name: string) =>
+    ipcRenderer.invoke('session:create', { name }),
+  saveSession: (id: number, messages: unknown[], name?: string) =>
+    ipcRenderer.invoke('session:save', { id, messages, name }),
+  renameSession: (id: number, name: string) =>
+    ipcRenderer.invoke('session:rename', { id, name }),
+  deleteSession: (id: number) =>
+    ipcRenderer.invoke('session:delete', { id }),
 }
 
 contextBridge.exposeInMainWorld('electronAPI', api)

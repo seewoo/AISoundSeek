@@ -184,3 +184,29 @@ export interface BatchAnalyzeProgress {
   stopped?: boolean     // 是否因错误而停止
   stopReason?: 'api_key_invalid' | 'api_error' | null  // 停止原因
 }
+
+// ── Chat Sessions ─────────────────────────────────────────────────────────────
+
+export interface StoredMessage {
+  type: 'user' | 'assistant' | 'error'
+  text: string
+  rawJson?: string
+  items?: AudioFile[]
+  reasons?: Record<string, string>
+}
+
+export interface ChatSession {
+  id: number
+  name: string
+  messages: StoredMessage[]
+  createdAt: number
+  updatedAt: number
+}
+
+export interface ChatSessionSummary {
+  id: number
+  name: string
+  messageCount: number
+  createdAt: number
+  updatedAt: number
+}

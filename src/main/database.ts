@@ -1,6 +1,6 @@
 import path from 'path'
 import fs from 'fs'
-import type { AudioFile, Tag, MusicDirectory, SearchParams, SearchResult, AppSettings, CustomCategory, AiConfig } from '../shared/types'
+import type { AudioFile, Tag, MusicDirectory, SearchParams, SearchResult, AppSettings, CustomCategory, AiConfig, ChatSession, ChatSessionSummary, StoredMessage } from '../shared/types'
 import { DbContext } from './db/DbContext'
 import { migrate } from './db/schema'
 import { DirectoryRepository } from './db/DirectoryRepository'
@@ -8,6 +8,7 @@ import { AudioRepository } from './db/AudioRepository'
 import { TagRepository } from './db/TagRepository'
 import { SettingsRepository } from './db/SettingsRepository'
 import { CategoryRepository } from './db/CategoryRepository'
+import { ChatSessionRepository } from './db/ChatSessionRepository'
 
 /**
  * DatabaseService — 对外暴露统一的数据库 API。
@@ -20,6 +21,7 @@ export class DatabaseService {
   private tagRepo!: TagRepository
   private settingsRepo!: SettingsRepository
   private categoryRepo!: CategoryRepository
+  private sessionRepo!: ChatSessionRepository
 
   private dbPath: string
 
@@ -52,6 +54,7 @@ export class DatabaseService {
     this.audioRepo = new AudioRepository(this.ctx)
     this.tagRepo = new TagRepository(this.ctx)
     this.categoryRepo = new CategoryRepository(this.ctx)
+    this.sessionRepo = new ChatSessionRepository(this.ctx)
 
     migrate(rawDb, (sql) => this.ctx.query(sql))
     this.ctx.save()
@@ -215,6 +218,32 @@ export class DatabaseService {
 
   getUnanalyzedFileIds(limit?: number): number[] {
     return this.audioRepo.getUnanalyzedFileIds(limit)
+  }
+
+  // ── Chat Sessions ────────────────────────────────────────────────────────────
+
+  listChatSessions(): ChatSessionSummary[] {
+    return this.sessionRepo.list()
+  }
+
+  getChatSession(id: number): ChatSession | null {
+    return this.sessionRepo.get(id)
+  }
+
+  createChatSession(name: string): ChatSession {
+    return this.sessionRepo.create(name)
+  }
+
+  updateChatSession(id: number, messages: StoredMessage[], name?: string): void {
+    this.sessionRepo.update(id, messages, name)
+  }
+
+  renameChatSession(id: number, name: string): void {
+    this.sessionRepo.rename(id, name)
+  }
+
+  deleteChatSession(id: number): void {
+    this.sessionRepo.delete(id)
   }
 
   // ── Lifecycle ────────────────────────────────────────────────────────────────

@@ -63,10 +63,19 @@ export function migrate(db: SqlJsDatabase, queryFn: (sql: string) => any[]): voi
       color TEXT NOT NULL DEFAULT '#64748b'
     );
 
+    CREATE TABLE IF NOT EXISTS chat_sessions (
+      id         INTEGER PRIMARY KEY AUTOINCREMENT,
+      name       TEXT    NOT NULL,
+      messages   TEXT    NOT NULL DEFAULT '[]',
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL
+    );
+
     CREATE INDEX IF NOT EXISTS idx_audio_files_category ON audio_files(category);
     CREATE INDEX IF NOT EXISTS idx_audio_files_copyright ON audio_files(copyright);
     CREATE INDEX IF NOT EXISTS idx_audio_files_rating ON audio_files(rating);
     CREATE INDEX IF NOT EXISTS idx_audio_files_updated ON audio_files(updated_at);
+    CREATE INDEX IF NOT EXISTS idx_chat_sessions_updated ON chat_sessions(updated_at);
   `)
 
   // ── Incremental column migrations ──────────────────────────────────────────

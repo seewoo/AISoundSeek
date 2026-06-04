@@ -1,4 +1,4 @@
-import type { AudioFile, Tag, MusicDirectory, SearchParams, SearchResult, AppSettings, CustomCategory, AiConfig, AiProvider, AiAnalysisResult, AiChatMessage, AiChatResponse, IpcResponse } from '../../shared/types'
+import type { AudioFile, Tag, MusicDirectory, SearchParams, SearchResult, AppSettings, CustomCategory, AiConfig, AiProvider, AiAnalysisResult, AiChatMessage, AiChatResponse, IpcResponse, ChatSession, ChatSessionSummary, StoredMessage } from '../../shared/types'
 import { ApiError, AuthenticationError, InsufficientTokenError, NetworkError } from './errors'
 import { logger } from './logger'
 
@@ -269,5 +269,31 @@ export async function batchAnalyze(fileIds?: number[], options?: Record<string, 
 
 export function onBatchProgress(callback: (progress: unknown) => void): () => void {
   return api.onBatchProgress(callback)
+}
+
+// ── Chat Sessions ─────────────────────────────────────────────────────────────
+
+export async function listSessions(): Promise<ChatSessionSummary[]> {
+  return apiCall('listSessions', () => (api as any).listSessions())
+}
+
+export async function getSession(id: number): Promise<ChatSession> {
+  return apiCall('getSession', () => (api as any).getSession(id), { id })
+}
+
+export async function createSession(name: string): Promise<ChatSession> {
+  return apiCall('createSession', () => (api as any).createSession(name), { name })
+}
+
+export async function saveSession(id: number, messages: StoredMessage[], name?: string): Promise<void> {
+  return apiCall('saveSession', () => (api as any).saveSession(id, messages, name), { id })
+}
+
+export async function renameSession(id: number, name: string): Promise<void> {
+  return apiCall('renameSession', () => (api as any).renameSession(id, name), { id, name })
+}
+
+export async function deleteSession(id: number): Promise<void> {
+  return apiCall('deleteSession', () => (api as any).deleteSession(id), { id })
 }
 
