@@ -5,6 +5,7 @@
 
 import type { AiConfig, AiProvider } from '../../shared/types'
 import { NetworkError, BackendError } from './errors'
+import { logAiCall } from './aiLogger'
 
 export interface ChatMessage {
   role: 'system' | 'user' | 'assistant'
@@ -31,10 +32,40 @@ export async function chatCompletion(
     throw new Error('API Key 未配置，请在设置中填写 API Key')
   }
 
-  if (provider.apiStyle === 'anthropic') {
-    return callAnthropic(baseUrl, config.apiKey, config.model, messages)
+  const url = provider.apiStyle === 'anthropic'
+    ? `${baseUrl}/v1/messages`
+    : `${baseUrl}/chat/completions`
+
+  const t0 = Date.now()
+  try {
+    const result = provider.apiStyle === 'anthropic'
+      ? await callAnthropic(baseUrl, config.apiKey, config.model, messages)
+      : await callOpenAICompat(baseUrl, config.apiKey, config.model, messages)
+
+    logAiCall({
+      ts: new Date().toISOString(),
+      provider: provider.id,
+      model: config.model,
+      url,
+      messages,
+      durationMs: Date.now() - t0,
+      success: true,
+      response: result,
+    })
+    return result
+  } catch (e: any) {
+    logAiCall({
+      ts: new Date().toISOString(),
+      provider: provider.id,
+      model: config.model,
+      url,
+      messages,
+      durationMs: Date.now() - t0,
+      success: false,
+      error: e?.message ?? String(e),
+    })
+    throw e
   }
-  return callOpenAICompat(baseUrl, config.apiKey, config.model, messages)
 }
 
 async function callOpenAICompat(

@@ -134,27 +134,33 @@ Respond with JSON: {"description": "...", "tags": ["tag1", "tag2", ...], "catego
 }
 
 /**
- * 使用 AI 从自然语言查询中提取搜索意图（关键词 + 类别 + 版权）
+ * 使用 AI 从自然语言查询中提取搜索意图（关键词 + 扩展词 + 类别 + 版权）
  */
 export async function extractSearchIntent(
   db: DatabaseService,
-  userMessage: string
+  userMessage: string,
+  recentHistory?: AiChatMessage[]
 ): Promise<SearchIntent> {
   const config = db.getAiConfig()
   const provider = resolveProvider(config)
 
   const systemPrompt = `你是音频搜索助手，从用户查询中提取结构化搜索信息。
 
-**任务**：提取以下三类信息
+**任务**：提取以下四类信息
 
-1. **keywords**（关键词数组）
+1. **keywords**（主要关键词，最多8个）
    - 提取名词、形容词、音乐术语、风格词、场景词
    - 去掉"有没有"、"找"、"需要"等无意义词
    - 保留英文原样，中文保持最短单元（1-4字）
-   - 最多8个词
 
-2. **category**（类别过滤，可选）
-   识别用户是否明确指定了音频类别：
+2. **expandedKeywords**（扩展关键词，最多16个）
+   - 为每个主要关键词提供同义词、近义词、英文等价词
+   - 包含相关风格词、情绪词、场景词（例："紧张"→["tension","thriller","suspense","压迫","危机"]）
+   - 覆盖不同表达习惯（中英文混合、口语/专业术语）
+   - 不与 keywords 重复
+   - **必须是独立字符串的数组，每个元素只含一个词或短语，禁止用逗号连接多个词放入同一元素**
+
+3. **category**（类别过滤，可选）
    - "bgm"：背景音乐、BGM、配乐、伴奏
    - "sfx"：声效、音效、SFX
    - "dialogue"：对白、台词、旁白、语音
@@ -162,23 +168,21 @@ export async function extractSearchIntent(
    - "ambience"：环境音、氛围音、自然音
    - "interactive"：动态音乐、游戏音乐
    - "sound_design"：音效设计、创意音效
+   如果用户没有指定，返回 null
 
-   如果用户没有指定类别，返回 null
-
-3. **copyright**（版权过滤，可选）
-   识别用户是否明确指定了版权类型：
-   - "free"：免费、免版权、无版权、公有领域、CC0、Royalty Free
-   - "licensed"：需要授权、版权音乐、付费、商用需授权
-
-   如果用户没有指定版权，返回 null
+4. **copyright**（版权过滤，可选）
+   - "free"：免费、免版权、无版权、CC0、Royalty Free
+   - "licensed"：需要授权、版权音乐
+   **只有**当用户明确说出版权相关词汇时才设置。不要根据使用场景推断版权意图。如果未明确说明，严格返回 null。
 
 **返回格式**：严格 JSON，不要 Markdown 包裹
-{"keywords": ["词1", "词2"], "category": "bgm", "copyright": "free"}
-{"keywords": ["词1", "词2"], "category": null, "copyright": null}`
+{"keywords": ["词1"], "expandedKeywords": ["扩展1", "扩展2"], "category": null, "copyright": null}`
 
   try {
+    const historyMessages = recentHistory ? recentHistory.slice(-6) : []
     const content = await chatCompletion(config, provider, [
       { role: 'system', content: systemPrompt },
+      ...historyMessages,
       { role: 'user', content: userMessage },
     ])
 
@@ -187,6 +191,16 @@ export async function extractSearchIntent(
 
     const keywords = Array.isArray(parsed.keywords)
       ? parsed.keywords.filter((kw: unknown) => typeof kw === 'string' && kw.length > 0).slice(0, 8)
+      : []
+
+    const expandedKeywords = Array.isArray(parsed.expandedKeywords)
+      ? parsed.expandedKeywords
+          .flatMap((kw: unknown) => {
+            if (typeof kw !== 'string' || kw.length === 0) return []
+            // 兼容模型把多个词用逗号写进同一元素的情况
+            return kw.split(/[,，]/).map((s: string) => s.trim()).filter((s: string) => s.length > 0)
+          })
+          .slice(0, 16)
       : []
 
     const validCategories = new Set<string>(['dialogue', 'sfx', 'bgm', 'theme', 'interactive', 'ambience', 'sound_design'])
@@ -203,7 +217,7 @@ export async function extractSearchIntent(
       return fallbackExtraction(userMessage, category, copyright)
     }
 
-    return { keywords, category, copyright }
+    return { keywords, expandedKeywords, category, copyright }
   } catch (e) {
     console.warn('AI 搜索意图提取失败，使用备用分词:', e)
     return fallbackExtraction(userMessage, undefined, undefined)
@@ -218,7 +232,43 @@ function fallbackExtraction(
   const cjkWords = userMessage.match(/[\u4e00-\u9fa5]{2,}/g) ?? []
   const alphaWords = userMessage.match(/[a-zA-Z]+/g) ?? []
   const keywords = [...cjkWords.slice(0, 4), ...alphaWords.slice(0, 4)].slice(0, 8)
-  return { keywords, category, copyright }
+  return { keywords, expandedKeywords: [], category, copyright }
+}
+
+/**
+ * Agent 1 — 意图分类器
+ * 判断用户最新消息是"全新搜索"还是"追问/补充"，决定后续 Agent 的上下文策略。
+ */
+export async function classifyUserIntent(
+  db: DatabaseService,
+  lastUserMsg: string,
+  recentExchanges: AiChatMessage[]
+): Promise<'new_search' | 'follow_up'> {
+  if (recentExchanges.length === 0) return 'new_search'
+
+  const config = db.getAiConfig()
+  const provider = resolveProvider(config)
+
+  const systemPrompt = `判断用户最新消息的类型，只返回 JSON，不要任何 Markdown。
+
+new_search（全新搜索）：用户提出与之前话题无关的新需求，包含新的主题词、场景词或明确意图。
+follow_up（追问补充）：用户在上次搜索基础上继续，例如"再来几首"、"换几首"、"更快节奏的"、"时长更长的"、"再推荐一些"等模糊追问。
+
+返回格式：{"type":"new_search"} 或 {"type":"follow_up"}`
+
+  try {
+    const content = await chatCompletion(config, provider, [
+      { role: 'system', content: systemPrompt },
+      ...recentExchanges.slice(-4),
+      { role: 'user', content: lastUserMsg },
+    ])
+    const clean = content.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim()
+    const parsed = JSON.parse(clean)
+    return parsed.type === 'follow_up' ? 'follow_up' : 'new_search'
+  } catch {
+    // 分类失败时默认 follow_up，避免"再推荐"类追问丢失上下文
+    return 'follow_up'
+  }
 }
 
 /**
@@ -232,13 +282,26 @@ export async function aiChatSearch(
   const config = db.getAiConfig()
   const provider = resolveProvider(config)
 
+  // 候选数量多时使用紧凑格式，减少 token 消耗
+  const isLargeList = candidateList.length > 100
   const listStr = candidateList
-    .map(a => `[ID:${a.id}] ${a.title || a.fileName} - ${a.artist || 'Unknown'} (${formatDuration(a.duration)}) [${a.category}] ${a.description ? `"${a.description.slice(0, 60)}"` : ''}`)
+    .map(a => {
+      const title = (a.title || a.fileName).slice(0, 40)
+      const dur = formatDuration(a.duration)
+      if (isLargeList) {
+        return `[${a.id}] ${title} (${dur}) [${a.category}]`
+      }
+      const artist = a.artist && a.artist !== 'Unknown' ? ` - ${a.artist}` : ''
+      const desc = a.description ? ` "${a.description.slice(0, 60)}"` : ''
+      return `[ID:${a.id}] ${title}${artist} (${dur}) [${a.category}]${desc}`
+    })
     .join('\n')
 
   const systemPrompt = `你是一个音频搜索助手，帮助用户从候选列表中选择最匹配的音频文件。
-请分析用户的需求，从候选列表中选出最匹配的 1-8 个音频（按相关性排序），每个选择都需要解释理由。
+请分析用户的需求，从候选列表（共 ${candidateList.length} 个）中选出最匹配的 1-10 个音频（按相关性排序），每个选择都需要解释理由。
+注意：候选集来自多路关键词扩展召回，请结合用户实际意图仔细筛选，不要只选靠前的结果。
 
+**严格约束**：picks 中的 id 必须来自下方候选列表，绝对禁止使用历史对话中出现的任何其他 id，违反此规则将导致结果无效。
 **重要**：严格返回JSON格式，不要使用Markdown代码块包裹
 返回格式：{"reply": "简短回复", "picks": [{"id": <音频ID>, "reason": "选择理由"}, ...]}
 
@@ -262,7 +325,7 @@ ${listStr}`
     const picks: AiChatPick[] = Array.isArray(parsed.picks)
       ? parsed.picks
           .filter((p: any) => typeof p.id === 'number' && typeof p.reason === 'string')
-          .slice(0, 8)
+          .slice(0, 10)
       : []
 
     return { reply, picks }

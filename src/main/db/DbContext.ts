@@ -44,6 +44,7 @@ export class DbContext {
 
   /** 执行查询并返回所有行 */
   query(sql: string, params: unknown[] = []): any[] {
+    console.log('[SQL query]', sql.replace(/\s+/g, ' ').trim(), params.length ? params : '')
     const stmt = this.db.prepare(sql)
     stmt.bind(params as any)
     const rows: any[] = []
@@ -62,6 +63,7 @@ export class DbContext {
 
   /** 执行写操作，返回 lastInsertRowid 和 changes */
   run(sql: string, params: unknown[] = []): { lastInsertRowid: number; changes: number } {
+    console.log('[SQL run]', sql.replace(/\s+/g, ' ').trim(), params.length ? params : '')
     this.db.run(sql, params as any)
     const changes = this.db.getRowsModified()
     const lastIdRows = this.db.exec('SELECT last_insert_rowid()')

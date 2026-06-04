@@ -10,7 +10,7 @@ import type { AudioFile } from '../../shared/types'
 
 export type MessageEntry =
   | { type: 'user'; text: string }
-  | { type: 'assistant'; text: string; items: AudioFile[]; reasons: Record<number, string> }
+  | { type: 'assistant'; text: string; rawJson?: string; items: AudioFile[]; reasons: Record<number, string> }
   | { type: 'error'; text: string }
 
 interface AiChatContextValue {

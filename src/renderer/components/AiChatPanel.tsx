@@ -35,7 +35,7 @@ export function AiChatPanel({ onSelectAudio }: Props) {
       if (e.type === 'user') {
         result.push({ role: 'user', content: e.text })
       } else if (e.type === 'assistant') {
-        result.push({ role: 'assistant', content: e.text })
+        result.push({ role: 'assistant', content: e.rawJson ?? e.text })
       }
     }
     return result
@@ -64,6 +64,7 @@ export function AiChatPanel({ onSelectAudio }: Props) {
       setMessages(prev => [...prev, {
         type: 'assistant',
         text: res.reply,
+        rawJson: JSON.stringify({ reply: res.reply, picks: res.picks }),
         items: res.items,
         reasons,
       }])

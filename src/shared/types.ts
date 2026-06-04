@@ -148,9 +148,10 @@ export interface AiChatResponse {
  * AI 提取的搜索意图，包含关键词和过滤条件
  */
 export interface SearchIntent {
-  keywords: string[]          // 搜索关键词（1-8个）
-  category?: AudioCategory    // 识别出的类别过滤（可选）
-  copyright?: CopyrightType   // 识别出的版权过滤（可选）
+  keywords: string[]           // 主要搜索关键词（1-8个）
+  expandedKeywords: string[]   // 同义词/近义词/关联扩展词（0-16个）
+  category?: AudioCategory     // 识别出的类别过滤（可选）
+  copyright?: CopyrightType    // 识别出的版权过滤（可选）
 }
 
 export interface IpcResponse<T = unknown> {

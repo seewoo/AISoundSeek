@@ -1,7 +1,7 @@
 import type { IpcMain } from 'electron'
 import type { DatabaseService } from '../database'
 import type { AiChatMessage, AudioFile, BatchAnalyzeOptions, AiConfig } from '../../shared/types'
-import { analyzeAudioWithAI, aiChatSearch, extractSearchIntent, getProviders, resolveProvider } from '../aiAnalyzer'
+import { analyzeAudioWithAI, aiChatSearch, extractSearchIntent, classifyUserIntent, getProviders, resolveProvider } from '../aiAnalyzer'
 import { chatCompletion } from '../lib/aiClient'
 import { BackendError } from '../lib/errors'
 
@@ -56,37 +56,73 @@ export function registerAiHandlers(ipcMain: IpcMain, db: DatabaseService): void 
       if (!check.ok) return check.response
 
       const lastUserMsg = [...messages].reverse().find((m) => m.role === 'user')?.content ?? ''
-      const searchIntent = await extractSearchIntent(db, lastUserMsg)
+
+      // Agent 1：意图分类 — 判断全新搜索 or 追问补充
+      const recentExchanges = messages.slice(-4)
+      const intentType = await classifyUserIntent(db, lastUserMsg, recentExchanges)
+
+      // Agent 2：搜索意图提取 — 全新搜索不携带历史，追问则携带最近 2 条用户消息
+      const userOnlyHistory = intentType === 'follow_up'
+        ? messages.slice(0, -1).filter(m => m.role === 'user').slice(-2)
+        : []
+      const searchIntent = await extractSearchIntent(db, lastUserMsg, userOnlyHistory)
+
+      // 追问时排除已推荐过的 ID；全新搜索重置，允许重新推荐相同文件
+      const shownIds = new Set<number>()
+      if (intentType === 'follow_up') {
+        for (const msg of messages) {
+          if (msg.role !== 'assistant') continue
+          try {
+            const parsed = JSON.parse(msg.content)
+            if (Array.isArray(parsed.picks)) {
+              for (const p of parsed.picks) {
+                if (typeof p.id === 'number') shownIds.add(p.id)
+              }
+            }
+          } catch { /* 非 JSON 格式的 assistant 消息直接跳过 */ }
+        }
+      }
 
       const seen = new Set<number>()
       const candidates: AudioFile[] = []
       const addResults = (items: AudioFile[]) => {
         for (const item of items) {
-          if (!seen.has(item.id)) {
+          if (!seen.has(item.id) && !shownIds.has(item.id)) {
             seen.add(item.id)
             candidates.push(item)
           }
         }
       }
 
-      for (const kw of searchIntent.keywords) {
-        if (candidates.length >= 100) break
-        addResults(
-          db.searchAudioFiles({
-            keyword: kw,
-            category: searchIntent.category,
-            copyright: searchIntent.copyright,
-            pageSize: 50,
-            page: 1,
-          }).items
-        )
+      const allKeywords = [...searchIntent.keywords, ...searchIntent.expandedKeywords]
+
+      // 用给定过滤器对所有关键词做搜索
+      const searchKeywords = (category?: typeof searchIntent.category, copyright?: typeof searchIntent.copyright) => {
+        for (const kw of allKeywords) {
+          if (candidates.length >= 300) break
+          addResults(
+            db.searchAudioFiles({ keyword: kw, category, copyright, pageSize: 50, page: 1 }).items
+          )
+        }
       }
 
-      if (candidates.length < 20) {
+      // 阶段1：全部过滤器
+      searchKeywords(searchIntent.category, searchIntent.copyright)
+
+      // 阶段2：结果不足时去掉 copyright 重试
+      if (candidates.length < 8 && searchIntent.copyright) {
+        searchKeywords(searchIntent.category, undefined)
+      }
+
+      // 阶段3：仍不足时再去掉 category 重试
+      if (candidates.length < 8 && searchIntent.category) {
+        searchKeywords(undefined, undefined)
+      }
+
+      // 兜底：无关键词匹配时取最新文件
+      if (candidates.length < 8) {
         addResults(
           db.searchAudioFiles({
-            category: searchIntent.category,
-            copyright: searchIntent.copyright,
             pageSize: 100,
             page: 1,
             sortBy: 'createdAt',
@@ -95,7 +131,7 @@ export function registerAiHandlers(ipcMain: IpcMain, db: DatabaseService): void 
         )
       }
 
-      const finalCandidates = candidates.slice(0, 100)
+      const finalCandidates = candidates.slice(0, 300)
 
       if (finalCandidates.length === 0) {
         return {
@@ -113,6 +149,19 @@ export function registerAiHandlers(ipcMain: IpcMain, db: DatabaseService): void 
       const items = aiResult.picks
         .map((p) => candidateMap.get(p.id))
         .filter((c): c is NonNullable<typeof c> => c !== undefined)
+
+      // 兜底：AI 选出的 ID 全不在候选池（幻觉复用历史 ID），直接取候选池前 5 条
+      if (items.length === 0 && finalCandidates.length > 0) {
+        const fallback = finalCandidates.slice(0, 5)
+        return {
+          success: true,
+          data: {
+            reply: aiResult.reply,
+            picks: fallback.map(c => ({ id: c.id, reason: '为您推荐的相关音频' })),
+            items: fallback,
+          },
+        }
+      }
 
       return { success: true, data: { reply: aiResult.reply, picks: aiResult.picks, items } }
     } catch (e: any) {
